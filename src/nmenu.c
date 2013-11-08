@@ -112,7 +112,7 @@ extern void initmenu(struct menu_list *menulist, struct menu_item *called, int l
 			newtListboxAppendEntry(menu->list, mi->name, &mi->key);
 			objunref(mi);
 		}
-		stop_bucket_loop(bloop);
+		objunref(bloop);
 		if (called) {
 			newtListboxSetCurrent(menu->list, called->current);
 		}

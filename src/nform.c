@@ -235,7 +235,7 @@ void save_changes(struct form_box *fbox, const char *xroot, const char *newnoden
 		}
 		objunref(result);
 	}
-	stop_bucket_loop(bloop);
+	objunref(bloop);
 
 	objunref(root);
 	objunref(tnode);

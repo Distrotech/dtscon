@@ -377,6 +377,6 @@ int main(int argc, char *argv[]) {
 	xslt_close();
 	xml_close();
 	objunref(config);
-	stopthreads();
+	stopthreads(1);
 	return(0);
 }
