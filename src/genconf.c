@@ -1131,13 +1131,13 @@ void ldap_pubbox() {
 	
 	if ((res = ldap_simplebind(ldap, lname, getldaplimpw()))) {
 		free(lname);
-                ldap_close(ldap);
+                objunref(ldap);
 		return;
 	}
 	free(lname);
 
 	if (!(results = ldap_search_sub(ldap, "ou=email", "(&(description=*)(sendmailMTAAliasValue=pubbox))", 0, &res, "sendmailMTAKey", "description", NULL))) {
-                ldap_close(ldap);
+                objunref(ldap);
                 return;
         }
 
@@ -1170,7 +1170,7 @@ void ldap_pubbox() {
 		xml_setattr(xmldoc, mbox, "group", group);
 	}
 	objunref(results);
-	ldap_close(ldap);
+	objunref(ldap);
 }
 
 void setup_domain() {
@@ -1218,7 +1218,7 @@ void setup_domain() {
 		free(fqdn);
 		free(domain);
 		free((void*)ldapuser);
-                ldap_close(ldap);
+                objunref(ldap);
 		return;
 	}
 	pmailx = xml_getnode(emconf, "MailExchange1");
@@ -1276,7 +1276,7 @@ void setup_domain() {
 	free(lname);
 	free(fqdn);
 	free(domain);
-	ldap_close(ldap);
+	objunref(ldap);
 }
 
 void fixup_config(const char *config) {

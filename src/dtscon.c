@@ -258,20 +258,20 @@ void ldaptest(const char *filter) {
 
 	if ((res = ldap_saslbind(ldap, "PLAIN", NULL, "admin", "gritt_Oth4" , NULL))) {
 		printf("Bind Error %i -  %s\n",res, ldap_errmsg(res));
-		ldap_close(ldap);
+		objunref(ldap);
 		return;
 	}
 
 /*	if ((res = ldap_simplebind(ldap, "uid=admin,ou=users", "gritt_Oth4"))) {
 		printf("Bind Error %i -  %s\n",res, ldap_errmsg(res));
-		ldap_close(ldap);
+		objunref(ldap);
 		return;
 	}*/
 
 /*	if ((res = ldap_simplerebind(ldap, "uid=ldap_limted_ns2,uid=admin,ou=Users", "peits1Ogg}", 
 		NULL, "(&(uid=*)(objectClass=posixAccount))", "uid", "admin", "gritt_Oth4"))) {
 		printf("Bind Error %i -  %s\n",res, ldap_errmsg(res));
-		ldap_close(ldap);
+		objunref(ldap);
 		return;
 	}*/
 
@@ -287,7 +287,7 @@ void ldaptest(const char *filter) {
 
 	if (!(results = ldap_search_sub(ldap, "", filter, 1, &res, NULL))) {
 		printf("Search Error %i -  %s\n",res, ldap_errmsg(res));
-		ldap_close(ldap);
+		objunref(ldap);
 		return;
 	}
 
@@ -319,7 +319,7 @@ void ldaptest(const char *filter) {
 		ldap_unref_entry(results, lent);
 	}
 	objunref(results);
-	ldap_close(ldap);
+	objunref(ldap);
 }
 
 int main(int argc, char *argv[]) {
