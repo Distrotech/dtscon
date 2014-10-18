@@ -1503,6 +1503,7 @@ void fixup_config(const char *config) {
 	}
 
 	setup_domain();
+	run_xslt("xml2conf.xsl", "netsentry.conf");
 	xml_savefile(xmldoc, config, 1, 9);
 }
 
