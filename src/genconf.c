@@ -896,7 +896,7 @@ void create_zone_configs() {
 	struct xml_search *xsearch;
 	struct xml_node *xn;
 	void *iter;
-	const char *domain, *key, *internal;
+	const char *domain, *key;
 
 	if (!(xsearch= xml_xpath(xmldoc, "/config/DNS/Hosted/Domain", "domain"))) {
 		return;
@@ -905,7 +905,6 @@ void create_zone_configs() {
 	for(xn = xml_getfirstnode(xsearch, &iter); xn; xn = xml_getnextnode(iter)) {
 		domain = xml_getattr(xn, "domain");
 		key = xml_getattr(xn, "key");
-		internal = xml_getattr(xn, "internal");
 		if (strlen(key)) {
 			domain_config(domain, key, 1);
 		}
