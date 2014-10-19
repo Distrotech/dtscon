@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <dtsapp.h>
+#include <dirent.h>
+#include <linux/if_ether.h>
 
 enum itype {
 	IFACE,
@@ -51,6 +53,17 @@ struct intface *new_iface(enum itype type, int idx) {
 	iface->next = NULL;
 
 	return iface;
+}
+
+struct intface *get_iface_name(char *ifname) {
+	struct intface *tmp = iflst;
+
+	for(;tmp;tmp = tmp->next) {
+		if (!strcmp(tmp->iface, ifname)) {
+			break;
+		}
+	}
+	return tmp;
 }
 
 struct intface *get_iface(enum itype type, int idx) {
@@ -493,6 +506,114 @@ void handle_options(struct xml_doc *xmldoc, char *name, char *value) {
 	}
 }
 
+char *get_macaddr(char *iface) {
+	char *maddr;
+	unsigned char hwaddr[ETH_ALEN];
+	int cnt;
+
+	if (!ifhwaddr(iface, hwaddr)) {
+		maddr=malloc(ETH_ALEN*2 + ETH_ALEN);
+		for(cnt=0;cnt < ETH_ALEN-1;cnt++) {
+			sprintf(&maddr[cnt*3], "%02X:", hwaddr[cnt]);
+		}
+		sprintf(&maddr[cnt*3], "%02X", hwaddr[cnt]);
+		return maddr;
+	}
+	return NULL;
+}
+
+void set_bridge(char *iface) {
+	char tmp[UNIX_PATH_MAX], brif[64] = "";
+	struct dirent *ep;
+	DIR *br;
+
+	snprintf(tmp, UNIX_PATH_MAX-1, "/sys/class/net/%s/brif", iface);
+
+	if (!(br = opendir (tmp))) {
+		perror ("Couldn't open the directory");
+		return;
+	}
+
+	while (ep = readdir(br)) {
+		if (!strncmp(ep->d_name, ".", 1)) {
+			continue;
+		}
+		if (strlen(brif)) {
+			sprintf((char*)&brif[strlen(brif)], " %s", ep->d_name);
+		} else {
+			sprintf(brif, "%s", ep->d_name);
+		}
+	}
+	closedir(br);
+	printf("Is BRIDGE %s (%s)\n", iface, brif);
+}
+
+
+void set_vlan(char *iface) {
+	char *base, *vid;
+	int idx;
+
+	base=strdup(iface);
+	if ((vid = index(base, '.'))) {
+		vid[0]='\0';
+		vid++;
+	}
+
+	printf("Is VLAN %s (%s - %s)\n", iface, base, vid);
+	free(base);
+}
+
+void set_wifi(char *iface) {
+	printf("Is WiFi %s\n", iface);
+}
+
+void sys_interface(void) {
+	DIR *dp;
+	struct dirent *ep;
+	char tmp[UNIX_PATH_MAX];
+	char *maddr;
+	const char *ipaddr;
+	struct intface *iface;
+
+	if (!(dp = opendir ("/sys/class/net"))) {
+		perror ("Couldn't open the directory");
+		return;
+	}
+
+	while (ep = readdir(dp)) {
+		if (!strncmp(ep->d_name, ".", 1) || !strncmp(ep->d_name, "imq", 3) ||
+		    !strcmp(ep->d_name, "lo") || !strncmp(ep->d_name, "sit", 3) ||
+		    !strncmp(ep->d_name, "gre", 3) || !strncmp(ep->d_name, "dummy", 5)) {
+			continue;
+		}
+
+		snprintf(tmp, UNIX_PATH_MAX-1, "/proc/net/vlan/%s", ep->d_name);
+		if (is_file(tmp)) {
+			set_vlan(ep->d_name);
+			continue;
+		}
+
+		snprintf(tmp, UNIX_PATH_MAX-1, "/sys/class/net/%s/bridge", ep->d_name);
+		if (is_dir(tmp)) {
+			set_bridge(ep->d_name);
+			continue;
+		}
+
+		snprintf(tmp, UNIX_PATH_MAX-1, "/sys/class/net/%s/wireless", ep->d_name);
+		if (is_dir(tmp)) {
+			set_wifi(ep->d_name);
+			continue;
+		}
+
+		if ((maddr = get_macaddr(ep->d_name))) {
+			printf("Interface %s (%s) [%s (%s)]\n", ep->d_name, maddr, iface->iface, iface->macaddr);
+			free(maddr);
+		}
+	}
+	closedir (dp);
+	return;
+}
+
 int main(int argc, char **argv) {
 	FILE *fp;
 	char name[50];
@@ -528,6 +649,8 @@ int main(int argc, char **argv) {
 			printf("line cannot be printed %s\n", buff);
 		}
 	}
+
+	sys_interface();
 
 	store_iface(xmldata);
 
