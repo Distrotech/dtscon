@@ -19,3 +19,4 @@ config.h.in~
 /*.layout
 autoscan.log
 configure.scan
+/src/sysreconf

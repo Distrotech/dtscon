@@ -1524,11 +1524,11 @@ void init_genconf(struct xml_doc *xdoc, const char *confdir, const char *xdir) {
 }
 
 void close_genconf() {
-        objunref(sconf);  
+        objunref(sconf);
         objunref(dconf);
         objunref(mconf);
         objunref(emconf);
- 
+
         if (ldaplimpw) {
                 free(ldaplimpw);
 		ldaplimpw = NULL;
