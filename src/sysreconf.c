@@ -1,3 +1,9 @@
+/*
+
+todo - wlan interfaces
+
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,17 +58,42 @@ struct intface *new_iface(enum itype type, int idx) {
 	iface->idx = idx;
 	iface->next = NULL;
 
+	if (!iflst) {
+		iflst = iface;
+	}
+
 	return iface;
 }
 
-struct intface *get_iface_name(char *ifname) {
-	struct intface *tmp = iflst;
+struct intface *get_iface_name(char *ifname, int newint) {
+	struct intface *last, *tmp = iflst;
+	char *vidc, iname[16];
+	int vid = 0;
+
+	strcpy(iname, ifname);
+	if ((vidc = index(iname, '.'))) {
+		vidc[0]='\0';
+		vidc++;
+		vid = atoi(vidc);
+	}
+
+	if (!iflst && newint) {
+		iflst = new_iface(IFACE, -1);
+		return iflst;
+	}
 
 	for(;tmp;tmp = tmp->next) {
-		if (!strcmp(tmp->iface, ifname)) {
+		if (!strcmp(tmp->iface, iname) && (tmp->id == vid)) {
 			break;
 		}
+		last = tmp;
 	}
+
+	if (newint && !tmp) {
+		last->next = new_iface(IFACE, -1);
+		return last->next;
+	}
+
 	return tmp;
 }
 
@@ -80,6 +111,7 @@ struct intface *get_iface(enum itype type, int idx) {
 		}
 		last = tmp;
 	}
+
 	if (!tmp) {
 		last->next = new_iface(type, idx);
 		return last->next;
@@ -168,6 +200,10 @@ void handle_iface_opts(char *name, int idx, char *val) {
 
 void free_list() {
 	struct intface *last=iflst;
+
+	if (!iflst) {
+		return;
+	}
 
 	do {
 		last = iflst;
@@ -522,12 +558,12 @@ char *get_macaddr(char *iface) {
 	return NULL;
 }
 
-void set_bridge(char *iface) {
+void set_bridge(char *iname, struct intface *iface) {
 	char tmp[UNIX_PATH_MAX], brif[64] = "";
 	struct dirent *ep;
 	DIR *br;
 
-	snprintf(tmp, UNIX_PATH_MAX-1, "/sys/class/net/%s/brif", iface);
+	snprintf(tmp, UNIX_PATH_MAX-1, "/sys/class/net/%s/brif", iname);
 
 	if (!(br = opendir (tmp))) {
 		perror ("Couldn't open the directory");
@@ -545,21 +581,37 @@ void set_bridge(char *iface) {
 		}
 	}
 	closedir(br);
-	printf("Is BRIDGE %s (%s)\n", iface, brif);
+
+	if (!strlen(iface->iface)) {
+		strcpy(iface->iface, iname);
+	}
+	if (!strlen(iface->intname)) {
+		strcpy(iface->intname, iname);
+	}
 }
 
 
-void set_vlan(char *iface) {
+void set_vlan(char *iname, struct intface *iface) {
 	char *base, *vid;
 	int idx;
 
-	base=strdup(iface);
+	base=strdup(iname);
 	if ((vid = index(base, '.'))) {
 		vid[0]='\0';
 		vid++;
 	}
 
-	printf("Is VLAN %s (%s - %s)\n", iface, base, vid);
+	if (!strlen(iface->iface)) {
+		strcpy(iface->iface, base);
+	}
+	if (!strlen(iface->intname)) {
+		strcpy(iface->intname, iname);
+	}
+	if (!iface->id) {
+		iface->id = atoi(vid);
+	}
+
+	iface->type = VLAN;
 	free(base);
 }
 
@@ -586,16 +638,19 @@ void sys_interface(void) {
 		    !strncmp(ep->d_name, "gre", 3) || !strncmp(ep->d_name, "dummy", 5)) {
 			continue;
 		}
+		iface = get_iface_name(ep->d_name, 1);
 
 		snprintf(tmp, UNIX_PATH_MAX-1, "/proc/net/vlan/%s", ep->d_name);
 		if (is_file(tmp)) {
-			set_vlan(ep->d_name);
+			set_vlan(ep->d_name, iface);
 			continue;
 		}
 
 		snprintf(tmp, UNIX_PATH_MAX-1, "/sys/class/net/%s/bridge", ep->d_name);
 		if (is_dir(tmp)) {
-			set_bridge(ep->d_name);
+			set_bridge(ep->d_name, iface);
+			if (!iface) {
+			}
 			continue;
 		}
 
@@ -606,7 +661,13 @@ void sys_interface(void) {
 		}
 
 		if ((maddr = get_macaddr(ep->d_name))) {
-			printf("Interface %s (%s) [%s (%s)]\n", ep->d_name, maddr, iface->iface, iface->macaddr);
+			if (iface) {
+				strcpy(iface->macaddr, maddr);
+				if (!strlen(iface->iface)) {
+					strcpy(iface->iface, ep->d_name);
+					strcpy(iface->intname, ep->d_name);
+				}
+			}
 			free(maddr);
 		}
 	}
