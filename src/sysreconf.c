@@ -239,6 +239,9 @@ void update_xml_path(struct xml_doc *xmldoc, char *xpath, char *value) {
 	if (xml_nodecount(npath) == 1) {
 		xml_modify(xmldoc, xn, value);
 	}
+
+	objunref(xn);
+	objunref(npath);
 }
 
 void update_xml_option(struct xml_doc *xmldoc, char *xpath, char *name, char *value) {
@@ -266,11 +269,32 @@ void update_xml_option(struct xml_doc *xmldoc, char *xpath, char *name, char *va
 		xml_delete(onode);
 	}
 
-	objunref(opath);
 	objunref(onode);
-
+	objunref(opath);
 }
 
+
+void update_xml_attr(struct xml_doc *xmldoc, char *xpath, char *attr, char *value) {
+	struct xml_search *apath;
+	struct xml_node *xn;
+	char spath[128];
+
+	if (!(apath = xml_xpath(xmldoc, xpath, NULL))) {
+		return;
+	}
+
+	if (!(xn = xml_getfirstnode(apath, NULL))) {
+		objunref(apath);
+		return;
+	}
+
+	if (xml_nodecount(apath) == 1) {
+		xml_setattr(xmldoc, xn, attr, value);
+	}
+
+	objunref(xn);
+	objunref(apath);
+}
 
 void modem_update(struct xml_doc *xmldoc, char *name, char *value) {
 	char modopt[64];
@@ -454,15 +478,19 @@ void handle_options(struct xml_doc *xmldoc, char *name, char *value) {
 	} else if (!strcmp(name, "OSLEVEL")) {
 		snprintf(tmp, sizeof(tmp)-1, "os level = %s", value);
 		update_xml_path(xmldoc, "/config/FileServer/Config/Item[starts-with(.,'os level = ')]", tmp);
+	} else if (!strcmp(name, "SERIAL")) {
+		update_xml_attr(xmldoc, "/config", "serial", value);
+	} else if (!strcmp(name, "DOMC")) {
+		if (!strcmp(value, "1")) {
+			update_xml_attr(xmldoc, "/config/FileServer", "sharedir", "S");
+			update_xml_attr(xmldoc, "/config/FileServer", "homedir", "U");
+		} else {
+			update_xml_attr(xmldoc, "/config/FileServer", "sharedir", "");
+			update_xml_attr(xmldoc, "/config/FileServer", "homedir", "");
+		}
 	} else if (strcmp(name, "VLAN_PHY") && strcmp(name, "DEL_DNS")) {
 		printf("%s -> %s\n", name, value);
 	}
-
-/*
-DOMC -> 0
-SERIAL -> C35AF2-6A8B71-D812F1-D178DC-EA37DB-1E6898-CD
-*/
-
 }
 
 int main(int argc, char **argv) {
